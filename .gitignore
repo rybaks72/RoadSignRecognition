@@ -5,7 +5,6 @@ venv/
 env/
 data/*
 !data/.gitkeep
-models/*
 !models/.gitkeep
 .ipynb_checkpoints/
 .idea

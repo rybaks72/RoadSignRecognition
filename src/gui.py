@@ -4,7 +4,7 @@ from PIL import Image, ImageTk
 import torch
 from torchvision import transforms
 import os
-from model import MultiScaleCNN
+from model import GTSRBModel
 
 # Define classes
 classes = {
@@ -28,15 +28,15 @@ classes = {
 
 # Data transformations
 transform = transforms.Compose([
-    transforms.Resize((32, 32)),
+    transforms.Resize((30, 30)),
     transforms.ToTensor(),
     transforms.Normalize((0.3337, 0.3064, 0.3171), (0.2672, 0.2564, 0.2629))
 ])
 
 # Load model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = MultiScaleCNN(num_classes=43).to(device)
-model_path = 'models/traffic_sign_model.pth'
+model = GTSRBModel(num_classes=43).to(device)
+model_path = 'models/gtsrb_final_model.pth'
 
 if os.path.exists(model_path):
     model.load_state_dict(torch.load(model_path, map_location=device))
