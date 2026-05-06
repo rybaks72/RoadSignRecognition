@@ -2,9 +2,9 @@ import torch
 from torchvision import transforms
 from PIL import Image
 import os
-from model import MultiScaleCNN
+from model import GTSRBModel
 
-def predict(image_path, model_path='models/traffic_sign_model.pth'):
+def predict(image_path, model_path='models/gtsrb_final_model.pth'):
     # Define classes (GTSRB has 43 classes)
     classes = {
         0: 'Speed limit (20km/h)', 1: 'Speed limit (30km/h)', 2: 'Speed limit (50km/h)',
@@ -27,14 +27,14 @@ def predict(image_path, model_path='models/traffic_sign_model.pth'):
 
     # Data transformations
     transform = transforms.Compose([
-        transforms.Resize((32, 32)),
+        transforms.Resize((30, 30)),
         transforms.ToTensor(),
         transforms.Normalize((0.3337, 0.3064, 0.3171), (0.2672, 0.2564, 0.2629))
     ])
 
     # Load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MultiScaleCNN(num_classes=43).to(device)
+    model = GTSRBModel(num_classes=43).to(device)
     
     if not os.path.exists(model_path):
         print(f"Model not found at {model_path}. Please train the model first.")
