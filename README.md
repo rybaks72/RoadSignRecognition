@@ -29,3 +29,12 @@ data/       - dataset files
 notebooks/  - experiments and dataset previews
 src/        - training and prediction scripts
 models/     - saved trained models
+```
+
+## Usage
+
+To run the application, you can use the following commands:
+
+- `python src/main.py train` - to train the model
+- `python src/main.py predict <path_to_image>` - to predict the sign in the image
+- `python src/main.py gui` - to launch the graphical user interface
