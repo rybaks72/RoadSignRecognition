@@ -58,12 +58,3 @@ class GTSRBModel(nn.Module):
         x = self.fc2(x)
         return x
 
-if __name__ == '__main__':
-    # Simple test for the model
-    model = GTSRBModel(43) # GTSRB has 43 classes
-    model.eval() # Set to eval mode to avoid BatchNorm issues with batch size 1
-    # Create a dummy input tensor (batch_size, channels, height, width)
-    dummy_input = torch.randn(2, 3, 48, 48) # Use batch size 2 to be safe
-    output = model(dummy_input)
-    print("Model output shape:", output.shape)
-    print(model)

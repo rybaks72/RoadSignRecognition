@@ -2,9 +2,5 @@ torch
 torchvision
 opencv-python
 numpy
-pandas
 matplotlib
-scikit-learn
-ultralytics
 Pillow
-jupyter

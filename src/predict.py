@@ -276,30 +276,3 @@ def annotate_image(
     return image
 
 
-if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Usage:")
-        print("  python src/predict.py <image_path>")
-        print("  python src/predict.py <image_path> <annotated_output_path>")
-        sys.exit(0)
-
-    img_path = sys.argv[1]
-    output_path = sys.argv[2] if len(sys.argv) > 2 else None
-    results = predict_many(img_path)
-
-    if not results:
-        print("No signs found or model is missing.")
-        sys.exit(0)
-
-    for idx, result in enumerate(results, start=1):
-        print(
-            f"{idx}. {result['class_name']} | "
-            f"confidence: {result['confidence']:.2%} | "
-            f"bbox: {result['bbox']}"
-        )
-
-    if output_path:
-        annotate_image(img_path, results, output_path)
-        print(f"Annotated image saved to: {output_path}")
