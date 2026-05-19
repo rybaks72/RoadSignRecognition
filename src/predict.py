@@ -27,8 +27,8 @@ CLASSES: Dict[int, str] = {
     42: 'End of no passing by vehicles over 3.5 metric tons'
 }
 
-NORMALIZE_MEAN = np.array([0.3337, 0.3064, 0.3171], dtype=np.float32)
-NORMALIZE_STD = np.array([0.2672, 0.2564, 0.2629], dtype=np.float32)
+NORMALIZE_MEAN = np.array([0.3403, 0.3121, 0.3214], dtype=np.float32)
+NORMALIZE_STD = np.array([0.1340, 0.1295, 0.1386], dtype=np.float32)
 
 # Model cache prevents loading the same .pth file for every detected sign.
 _MODEL_CACHE = {}
@@ -58,7 +58,7 @@ def _load_model(model_path: str = 'models/gtsrb_final_model.pth'):
 
 def _image_to_tensor(image: Image.Image) -> torch.Tensor:
     """Convert a PIL image to a normalized CHW tensor without requiring torchvision."""
-    resized = image.convert('RGB').resize((30, 30))
+    resized = image.convert('RGB').resize((48, 48))
     array = np.asarray(resized, dtype=np.float32) / 255.0
     array = (array - NORMALIZE_MEAN) / NORMALIZE_STD
     array = np.transpose(array, (2, 0, 1))
