@@ -1,4 +1,5 @@
 import os
+import re
 
 import matplotlib.pyplot as plt
 import torch
@@ -20,24 +21,46 @@ LEARNING_RATE = 0.0005
 # Change this path if your dataset is somewhere else.
 DATASET_PATH = 'data/archive'
 TRAIN_DIR = os.path.join(DATASET_PATH, 'Train')
-MODEL_OUTPUT_PATH = 'models/gtsrb_final_model.pth'
-BEST_MODEL_OUTPUT_PATH = 'models/gtsrb_model_best.pth'
+
+
+def get_next_model_paths(directory: str = 'models'):
+    """Determine the next model version number and return the path for the next model."""
+    os.makedirs(directory, exist_ok=True)
+    files = os.listdir(directory)
+    # Pattern to match gtsrb_model_{number}.pth
+    pattern = re.compile(r"^gtsrb_model_(\d+)\.pth$")
+
+    max_num = 0
+    for f in files:
+        match = pattern.match(f)
+        if match:
+            try:
+                num = int(match.group(1))
+                max_num = max(max_num, num)
+            except ValueError:
+                continue
+
+    next_num = max_num + 1
+    final_name = f"gtsrb_model_{next_num}.pth"
+
+    return os.path.join(directory, final_name)
 
 
 def train_model(
     train_dir: str = TRAIN_DIR,
-    model_output_path: str = MODEL_OUTPUT_PATH,
-    best_model_output_path: str = BEST_MODEL_OUTPUT_PATH,
+    model_output_path: str = None,
     epochs: int = EPOCHS,
     batch_size: int = BATCH_SIZE,
     learning_rate: float = LEARNING_RATE,
 ):
     """Train the GTSRB CNN model and save weights to the models directory."""
+    if model_output_path is None:
+        model_output_path = get_next_model_paths()
+
     if not os.path.exists(train_dir):
         raise FileNotFoundError(f"Training directory not found: {train_dir}")
 
     os.makedirs(os.path.dirname(model_output_path), exist_ok=True)
-    os.makedirs(os.path.dirname(best_model_output_path), exist_ok=True)
 
     train_transform = transforms.Compose([
         transforms.Resize((IMG_WIDTH + 8, IMG_HEIGHT + 8)),
@@ -83,7 +106,6 @@ def train_model(
     print("Starting model training...")
 
     history = {'train_loss': [], 'train_accuracy': [], 'val_loss': [], 'val_accuracy': []}
-    best_val_accuracy = 0.0
 
     for epoch in range(epochs):
         model.train()
@@ -139,11 +161,6 @@ def train_model(
             f"Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.2f}%"
         )
 
-        if val_accuracy > best_val_accuracy:
-            best_val_accuracy = val_accuracy
-            torch.save(model.state_dict(), best_model_output_path)
-            print(f"Saved best model weights to '{best_model_output_path}'")
-
     torch.save(model.state_dict(), model_output_path)
     print(f"Final model saved as '{model_output_path}'")
 
@@ -166,7 +183,9 @@ def train_model(
     plt.legend()
 
     plt.tight_layout()
-    plot_path = os.path.join(os.path.dirname(model_output_path), 'training_history.png')
+    # Use a matching name for the history plot
+    base_name = os.path.splitext(os.path.basename(model_output_path))[0]
+    plot_path = os.path.join(os.path.dirname(model_output_path), f"{base_name}_history.png")
     plt.savefig(plot_path)
     print(f"Training history plot saved to '{plot_path}'")
     

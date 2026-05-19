@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Dict, List, Tuple, Union
 
 import cv2
@@ -35,8 +36,38 @@ _MODEL_CACHE = {}
 BBox = Tuple[int, int, int, int]
 
 
+def _resolve_model_path(model_path: str) -> str:
+    """If the specified model_path does not exist, try to find the latest gtsrb_model_{number}.pth."""
+    if os.path.exists(model_path):
+        return model_path
+
+    directory = os.path.dirname(model_path) or 'models'
+    if not os.path.exists(directory):
+        return model_path
+
+    pattern = re.compile(r"^gtsrb_model_(\d+)\.pth$")
+    candidates = []
+    for f in os.listdir(directory):
+        match = pattern.match(f)
+        if match:
+            try:
+                candidates.append((int(match.group(1)), f))
+            except ValueError:
+                continue
+
+    if candidates:
+        # Sort by number descending and take the largest
+        latest_file = sorted(candidates, key=lambda x: x[0], reverse=True)[0][1]
+        resolved = os.path.join(directory, latest_file)
+        print(f"Model '{model_path}' not found. Using latest model: '{resolved}'")
+        return resolved
+
+    return model_path
+
+
 def _load_model(model_path: str = 'models/gtsrb_final_model.pth'):
     """Load the trained model once and reuse it."""
+    model_path = _resolve_model_path(model_path)
     abs_path = os.path.abspath(model_path)
 
     if abs_path in _MODEL_CACHE:
