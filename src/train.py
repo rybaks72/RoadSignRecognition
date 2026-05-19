@@ -1,158 +1,161 @@
 import os
+
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision import transforms, datasets
-import matplotlib.pyplot as plt
+from torchvision import datasets, transforms
 
-# Assuming model.py is in the same directory, import the model class
 from model import GTSRBModel
 
 # --- Configuration ---
 IMG_HEIGHT = 30
 IMG_WIDTH = 30
-CHANNELS = 3
-NUM_CLASSES = 43 # GTSRB has 43 classes
-EPOCHS = 15 # Can be increased for better performance
+NUM_CLASSES = 43  # GTSRB has 43 classes
+EPOCHS = 15
 BATCH_SIZE = 32
 LEARNING_RATE = 0.001
 
-# Path to the extracted dataset
-DATASET_PATH = '/content/RoadSignRecognition/data/gtsrb-german-traffic-sign/'
+# Change this path if your dataset is somewhere else.
+DATASET_PATH = 'data/gtsrb-german-traffic-sign'
 TRAIN_DIR = os.path.join(DATASET_PATH, 'Train')
-TEST_DIR = os.path.join(DATASET_PATH, 'Test') # Note: This will be used for testing, not validation here.
+MODEL_OUTPUT_PATH = 'models/gtsrb_final_model.pth'
+BEST_MODEL_OUTPUT_PATH = 'models/gtsrb_model_best.pth'
 
-# Ensure the training directory exists
-if not os.path.exists(TRAIN_DIR):
-    raise FileNotFoundError(f"Training directory not found: {TRAIN_DIR}")
 
-# --- Data Preprocessing and Augmentation ---
-# Define transformations for training data with augmentation
-train_transform = transforms.Compose([
-    transforms.Resize((IMG_WIDTH, IMG_HEIGHT)),
-    transforms.RandomRotation(10),
-    transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),
-    transforms.ToTensor(),
-    transforms.Normalize((0.3403, 0.3121, 0.3214), (0.1340, 0.1295, 0.1386)) # GTSRB dataset mean and std
-])
+def train_model(
+    train_dir: str = TRAIN_DIR,
+    model_output_path: str = MODEL_OUTPUT_PATH,
+    best_model_output_path: str = BEST_MODEL_OUTPUT_PATH,
+    epochs: int = EPOCHS,
+    batch_size: int = BATCH_SIZE,
+    learning_rate: float = LEARNING_RATE,
+):
+    """Train the GTSRB CNN model and save weights to the models directory."""
+    if not os.path.exists(train_dir):
+        raise FileNotFoundError(f"Training directory not found: {train_dir}")
 
-# Define transformations for validation/test data (no augmentation, just resize and normalize)
-val_transform = transforms.Compose([
-    transforms.Resize((IMG_WIDTH, IMG_HEIGHT)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.3403, 0.3121, 0.3214), (0.1340, 0.1295, 0.1386))
-])
+    os.makedirs(os.path.dirname(model_output_path), exist_ok=True)
+    os.makedirs(os.path.dirname(best_model_output_path), exist_ok=True)
 
-# Load the full training dataset
-full_train_dataset = datasets.ImageFolder(TRAIN_DIR, transform=train_transform)
+    train_transform = transforms.Compose([
+        transforms.Resize((IMG_WIDTH, IMG_HEIGHT)),
+        transforms.RandomRotation(10),
+        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),
+        transforms.ToTensor(),
+        transforms.Normalize((0.3403, 0.3121, 0.3214), (0.1340, 0.1295, 0.1386))
+    ])
 
-# Split the training dataset into training and validation sets
-train_size = int(0.8 * len(full_train_dataset))
-val_size = len(full_train_dataset) - train_size
-train_dataset, val_dataset = torch.utils.data.random_split(full_train_dataset, [train_size, val_size])
+    val_transform = transforms.Compose([
+        transforms.Resize((IMG_WIDTH, IMG_HEIGHT)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.3403, 0.3121, 0.3214), (0.1340, 0.1295, 0.1386))
+    ])
 
-# Adjust validation dataset transform (remove augmentation)
-val_dataset.dataset.transform = val_transform
+    full_train_dataset = datasets.ImageFolder(train_dir, transform=train_transform)
 
-# Create DataLoaders
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
-val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
+    train_size = int(0.8 * len(full_train_dataset))
+    val_size = len(full_train_dataset) - train_size
+    train_dataset, val_dataset = torch.utils.data.random_split(full_train_dataset, [train_size, val_size])
+    val_dataset.dataset.transform = val_transform
 
-# --- Model Building ---
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = GTSRBModel(NUM_CLASSES).to(device)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 
-# --- Model Compilation (Optimizer and Loss Function) ---
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = GTSRBModel(NUM_CLASSES).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-print(model)
+    print(model)
+    print("Starting model training...")
 
-# --- Training Loop ---
-print("Starting model training...")
-history = {'train_loss': [], 'train_accuracy': [], 'val_loss': [], 'val_accuracy': []}
-best_val_accuracy = 0.0
+    history = {'train_loss': [], 'train_accuracy': [], 'val_loss': [], 'val_accuracy': []}
+    best_val_accuracy = 0.0
 
-for epoch in range(EPOCHS):
-    model.train() # Set model to training mode
-    running_loss = 0.0
-    correct_train = 0
-    total_train = 0
-    for i, (inputs, labels) in enumerate(train_loader):
-        inputs, labels = inputs.to(device), labels.to(device)
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+        correct_train = 0
+        total_train = 0
 
-        optimizer.zero_grad()
-
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item()
-
-        _, predicted = torch.max(outputs.data, 1)
-        total_train += labels.size(0)
-        correct_train += (predicted == labels).sum().item()
-
-    train_loss = running_loss / len(train_loader)
-    train_accuracy = 100 * correct_train / total_train
-    history['train_loss'].append(train_loss)
-    history['train_accuracy'].append(train_accuracy)
-
-    model.eval() # Set model to evaluation mode
-    val_loss = 0.0
-    correct_val = 0
-    total_val = 0
-    with torch.no_grad(): # Disable gradient calculation for validation
-        for inputs, labels in val_loader:
+        for inputs, labels in train_loader:
             inputs, labels = inputs.to(device), labels.to(device)
+
+            optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
-            val_loss += loss.item()
+            loss.backward()
+            optimizer.step()
 
+            running_loss += loss.item()
             _, predicted = torch.max(outputs.data, 1)
-            total_val += labels.size(0)
-            correct_val += (predicted == labels).sum().item()
+            total_train += labels.size(0)
+            correct_train += (predicted == labels).sum().item()
 
-    val_loss /= len(val_loader)
-    val_accuracy = 100 * correct_val / total_val
-    history['val_loss'].append(val_loss)
-    history['val_accuracy'].append(val_accuracy)
+        train_loss = running_loss / len(train_loader)
+        train_accuracy = 100 * correct_train / total_train
+        history['train_loss'].append(train_loss)
+        history['train_accuracy'].append(train_accuracy)
 
-    print(f'Epoch {epoch+1}/{EPOCHS}, ' \
-          f'Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.2f}%, ' \
-          f'Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.2f}%')
+        model.eval()
+        val_loss = 0.0
+        correct_val = 0
+        total_val = 0
 
-    # Save the best model based on validation accuracy
-    if val_accuracy > best_val_accuracy:
-        best_val_accuracy = val_accuracy
-        torch.save(model.state_dict(), 'gtsrb_model_best.pth')
-        print("Saved best model weights to 'gtsrb_model_best.pth'")
+        with torch.no_grad():
+            for inputs, labels in val_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
 
-print("Model training finished.")
+                _, predicted = torch.max(outputs.data, 1)
+                total_val += labels.size(0)
+                correct_val += (predicted == labels).sum().item()
 
-# --- Save the final trained model (if not already saved as best) ---
-torch.save(model.state_dict(), 'gtsrb_final_model.pth')
-print("Final model saved as 'gtsrb_final_model.pth'")
+        val_loss /= len(val_loader)
+        val_accuracy = 100 * correct_val / total_val
+        history['val_loss'].append(val_loss)
+        history['val_accuracy'].append(val_accuracy)
 
-# Optional: Plot training history
-plt.figure(figsize=(12, 4))
+        print(
+            f"Epoch {epoch + 1}/{epochs}, "
+            f"Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.2f}%, "
+            f"Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.2f}%"
+        )
 
-plt.subplot(1, 2, 1)
-plt.plot(history['train_accuracy'], label='Training Accuracy')
-plt.plot(history['val_accuracy'], label='Validation Accuracy')
-plt.title('Training and Validation Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            torch.save(model.state_dict(), best_model_output_path)
+            print(f"Saved best model weights to '{best_model_output_path}'")
 
-plt.subplot(1, 2, 2)
-plt.plot(history['train_loss'], label='Training Loss')
-plt.plot(history['val_loss'], label='Validation Loss')
-plt.title('Training and Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
+    torch.save(model.state_dict(), model_output_path)
+    print(f"Final model saved as '{model_output_path}'")
 
-plt.show()
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(history['train_accuracy'], label='Training Accuracy')
+    plt.plot(history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Training and Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(history['train_loss'], label='Training Loss')
+    plt.plot(history['val_loss'], label='Validation Loss')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    plt.show()
+
+    return history
+
+
+if __name__ == "__main__":
+    train_model()

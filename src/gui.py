@@ -1,63 +1,16 @@
 import tkinter as tk
-from tkinter import filedialog, Label, Button, Frame
+from tkinter import filedialog, Label, Button, Frame, Message
 from PIL import Image, ImageTk
-import torch
-from torchvision import transforms
-import os
-from model import GTSRBModel
 
-# Define classes
-classes = {
-    0: 'Speed limit (20km/h)', 1: 'Speed limit (30km/h)', 2: 'Speed limit (50km/h)',
-    3: 'Speed limit (60km/h)', 4: 'Speed limit (70km/h)', 5: 'Speed limit (80km/h)',
-    6: 'End of speed limit (80km/h)', 7: 'Speed limit (100km/h)', 8: 'Speed limit (120km/h)',
-    9: 'No passing', 10: 'No passing for vehicles over 3.5 metric tons',
-    11: 'Right-of-way at the next intersection', 12: 'Priority road', 13: 'Yield',
-    14: 'Stop', 15: 'No vehicles', 16: 'Vehicles over 3.5 metric tons prohibited',
-    17: 'No entry', 18: 'General caution', 19: 'Dangerous curve to the left',
-    20: 'Dangerous curve to the right', 21: 'Double curve', 22: 'Bumpy road',
-    23: 'Slippery road', 24: 'Road narrows on the right', 25: 'Road work',
-    26: 'Traffic signals', 27: 'Pedestrians', 28: 'Children crossing',
-    29: 'Bicycles crossing', 30: 'Beware of ice/snow', 31: 'Wild animals crossing',
-    32: 'End of all speed and passing limits', 33: 'Turn right ahead',
-    34: 'Turn left ahead', 35: 'Ahead only', 36: 'Go straight or right',
-    37: 'Go straight or left', 38: 'Keep right', 39: 'Keep left',
-    40: 'Roundabout mandatory', 41: 'End of no passing',
-    42: 'End of no passing by vehicles over 3.5 metric tons'
-}
+from predict import annotate_image, predict_many
 
-# Data transformations
-transform = transforms.Compose([
-    transforms.Resize((30, 30)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.3337, 0.3064, 0.3171), (0.2672, 0.2564, 0.2629))
-])
-
-# Load model
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = GTSRBModel(num_classes=43).to(device)
-model_path = 'models/gtsrb_final_model.pth'
-
-if os.path.exists(model_path):
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    model.eval()
-else:
-    print(f"Model not found at {model_path}. Please train the model first.")
-    # Handle missing model case if necessary, e.g., disable prediction button
-    
-def predict(image):
-    image = transform(image).unsqueeze(0).to(device)
-    with torch.no_grad():
-        output = model(image)
-        _, predicted = torch.max(output, 1)
-        class_id = predicted.item()
-    return classes.get(class_id, "Unknown")
 
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Road Sign Recognition")
         self.file_path = None
+        self.photo = None
 
         self.title_label = Label(root, text="Road Sign Recognition Application", font=("Helvetica", 16))
         self.title_label.pack(pady=10)
@@ -71,7 +24,7 @@ class App:
         self.upload_button = Button(self.controls_frame, text="Upload Image", command=self.upload_image)
         self.upload_button.pack(side=tk.LEFT, padx=5)
 
-        self.classify_button = Button(self.controls_frame, text="Classify Sign", command=self.classify_image, state=tk.DISABLED)
+        self.classify_button = Button(self.controls_frame, text="Classify Signs", command=self.classify_image, state=tk.DISABLED)
         self.classify_button.pack(side=tk.LEFT, padx=5)
 
         self.reset_button = Button(self.controls_frame, text="Clear", command=self.reset)
@@ -80,35 +33,62 @@ class App:
         self.image_label = Label(root)
         self.image_label.pack(pady=10)
 
-        self.result_label = Label(root, text="", font=("Helvetica", 12))
+        self.result_label = Message(root, text="", font=("Helvetica", 12), width=650)
         self.result_label.pack(pady=10)
 
+    def _show_image(self, image):
+        preview = image.copy()
+        preview.thumbnail((650, 450))
+        self.photo = ImageTk.PhotoImage(preview)
+        self.image_label.config(image=self.photo)
+
     def upload_image(self):
-        self.file_path = filedialog.askopenfilename()
+        self.file_path = filedialog.askopenfilename(
+            filetypes=[
+                ("Image files", "*.jpg *.jpeg *.png *.bmp *.webp"),
+                ("All files", "*.*")
+            ]
+        )
         if self.file_path:
-            image = Image.open(self.file_path)
-            image.thumbnail((300, 300))
-            self.photo = ImageTk.PhotoImage(image)
-            self.image_label.config(image=self.photo)
+            image = Image.open(self.file_path).convert('RGB')
+            self._show_image(image)
             self.classify_button.config(state=tk.NORMAL)
             self.result_label.config(text="")
 
     def classify_image(self):
-        if self.file_path:
-            image = Image.open(self.file_path).convert('RGB')
-            prediction = predict(image)
-            self.result_label.config(text=f"Predicted Class: {prediction}")
+        if not self.file_path:
+            return
+
+        predictions = predict_many(self.file_path)
+        if not predictions:
+            self.result_label.config(text="No signs found or model file is missing.")
+            return
+
+        annotated_image = annotate_image(self.file_path, predictions)
+        self._show_image(annotated_image)
+
+        lines = ["Detected signs:"]
+        for index, prediction in enumerate(predictions, start=1):
+            lines.append(
+                f"{index}. {prediction['class_name']} "
+                f"({prediction['confidence']:.1%})"
+            )
+
+        self.result_label.config(text="\n".join(lines))
 
     def reset(self):
         self.file_path = None
         self.image_label.config(image='')
         self.result_label.config(text="")
         self.classify_button.config(state=tk.DISABLED)
+        self.photo = None
+
 
 def main():
     root = tk.Tk()
-    app = App(root)
+    App(root)
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
