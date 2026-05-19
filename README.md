@@ -1,40 +1,74 @@
 # Road Sign Recognition Application
 
-This project is prepared for the Artificial Intelligence Fundamentals course.
+This project is a road sign recognition system that can detect and classify traffic signs from images. It was prepared for the Artificial Intelligence Fundamentals course.
 
-The goal of the project is to build a road sign recognition system that can detect and classify traffic signs from images.
+### Authors
+- Sylwia Rybak
+- Wojciech Sendek
+- Stanisław Zieliński
+- Jakub Szostak
 
-## Planned approach
+## Project Features
 
-The system follows the general computer vision pipeline:
+- **Multi-sign detection**: Uses color masks and contour detection to find multiple potential signs in a single image.
+- **CNN Classification**: Classifies detected signs using a deep Convolutional Neural Network trained on the GTSRB dataset.
+- **Visualization**: Draws bounding boxes and labels with confidence scores on the original image.
+- **GUI & CLI**: Supports both a Graphical User Interface and a Command Line Interface.
 
-1. Image acquisition
-2. Preprocessing
-3. Feature extraction
-4. Classification
+## Installation
 
-The preferred AI-based solution is based on convolutional neural networks.  
-The project may use CNN-based classification and YOLO-based object detection for locating and recognizing road signs.
+1. Clone the repository.
+2. Install the required dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-## Dataset
-
-Planned dataset:
-
-- GTSRB - German Traffic Sign Recognition Benchmark
-
-## Project structure
+## Project Structure
 
 ```text
-data/       - dataset files
-notebooks/  - experiments and dataset previews
-src/        - training and prediction scripts
-models/     - saved trained models
+models/     - Saved trained models and training history
+src/        - Source code (training, prediction, model, and GUI)
+README.md   - Project documentation
+requirements.txt - Project dependencies
 ```
+
+## Technical Details
+
+- **Model**: Custom CNN with 6 convolutional layers, batch normalization, and dropout for regularization.
+- **Input Size**: Images are resized to **48x48 pixels** before being processed by the model.
+- **Normalization**: Input data is normalized using GTSRB dataset statistics (Mean: [0.3403, 0.3121, 0.3214], Std: [0.1340, 0.1295, 0.1386]).
 
 ## Usage
 
-To run the application, you can use the following commands:
+Run all commands from the project root directory.
 
-- `python src/main.py train` - to train the model
-- `python src/main.py predict <path_to_image>` - to predict the sign in the image
-- `python src/main.py gui` - to launch the graphical user interface
+### GUI
+Launch the graphical interface to upload and classify images:
+```bash
+python src/main.py gui
+```
+
+### Command Line Interface
+
+**1. Detect and classify all signs in an image:**
+```bash
+python src/main.py predict path/to/image.jpg
+```
+
+**2. Detect, classify and save an annotated image:**
+```bash
+python src/main.py predict path/to/image.jpg output/annotated.jpg
+```
+
+**3. Classify the whole image as a single sign (Backward compatibility):**
+```bash
+python src/main.py predict-one path/to/image.jpg
+```
+
+**4. Train the model (Requires downloading the GTSRB dataset):**
+```bash
+python src/main.py train
+```
+Each training run saves a new version of the model named `models/gtsrb_model_{number}.pth` and its corresponding training history plot.
+
+The prediction scripts default to the latest numbered model (`models/gtsrb_model_{n}.pth`). If no such file exists, they will default to looking for `models/gtsrb_model_1.pth`.
