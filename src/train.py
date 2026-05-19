@@ -78,8 +78,26 @@ def train_model(
         transforms.Normalize((0.3403, 0.3121, 0.3214), (0.1340, 0.1295, 0.1386))
     ])
 
-    train_dataset_full = datasets.ImageFolder(train_dir, transform=train_transform)
-    val_dataset_full = datasets.ImageFolder(train_dir, transform=val_transform)
+    # GTSRB folder names are '0', '1', ..., '42'. ImageFolder sorts them as strings,
+    # which leads to '0', '1', '10', '11', ... mapping.
+    # We force the mapping to match the integer value of the folder name.
+    folder_to_idx = {str(i): i for i in range(NUM_CLASSES)}
+
+    def get_dataset(root, transform):
+        dataset = datasets.ImageFolder(root, transform=transform)
+        # Re-map samples to use correct integer indices
+        new_samples = []
+        for path, _ in dataset.samples:
+            # Extract folder name from path
+            folder_name = os.path.basename(os.path.dirname(path))
+            new_samples.append((path, folder_to_idx[folder_name]))
+        dataset.samples = new_samples
+        dataset.class_to_idx = folder_to_idx
+        dataset.targets = [s[1] for s in new_samples]
+        return dataset
+
+    train_dataset_full = get_dataset(train_dir, train_transform)
+    val_dataset_full = get_dataset(train_dir, val_transform)
 
     num_samples = len(train_dataset_full)
     train_size = int(0.8 * num_samples)

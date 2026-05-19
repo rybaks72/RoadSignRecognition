@@ -71,4 +71,4 @@ python src/main.py train
 ```
 Each training run saves a new version of the model named `models/gtsrb_model_{number}.pth` and its corresponding training history plot.
 
-The prediction scripts default to `models/gtsrb_final_model.pth`. If this file is missing, they will automatically attempt to load the latest numbered model (`models/gtsrb_model_{n}.pth`).
+The prediction scripts default to the latest numbered model (`models/gtsrb_model_{n}.pth`). If no such file exists, they will default to looking for `models/gtsrb_model_1.pth`.
