@@ -65,7 +65,7 @@ def _resolve_model_path(model_path: str) -> str:
     return model_path
 
 
-def _load_model(model_path: str = 'models/gtsrb_model_1.pth'):
+def _load_model(model_path: str = 'models/gtsrb_model_2.pth'):
     """Load the trained model once and reuse it."""
     model_path = _resolve_model_path(model_path)
     abs_path = os.path.abspath(model_path)
@@ -211,7 +211,7 @@ def detect_sign_candidates(image: Image.Image, max_candidates: int = 20) -> List
     return boxes[:max_candidates]
 
 
-def predict(image_path: str, model_path: str = 'models/gtsrb_model_1.pth') -> Union[str, None]:
+def predict(image_path: str, model_path: str = 'models/gtsrb_model_2.pth') -> Union[str, None]:
     """
     Backward-compatible single-sign prediction.
 
@@ -230,7 +230,7 @@ def predict(image_path: str, model_path: str = 'models/gtsrb_model_1.pth') -> Un
 
 def predict_many(
     image_path: str,
-    model_path: str = 'models/gtsrb_model_1.pth',
+    model_path: str = 'models/gtsrb_model_2.pth',
     max_results: int = 10,
     min_confidence: float = 0.0
 ) -> List[Dict[str, Union[int, str, float, BBox]]]:
