@@ -124,6 +124,12 @@ def train_model(
     print("Starting model training...")
 
     history = {'train_loss': [], 'train_accuracy': [], 'val_loss': [], 'val_accuracy': []}
+    
+    # Early Stopping initialization
+    best_val_loss = float('inf')
+    early_stop_counter = 0
+    patience = 5
+    best_model_state = None
 
     for epoch in range(epochs):
         model.train()
@@ -173,12 +179,28 @@ def train_model(
 
         scheduler.step(val_loss)
 
+        # Early Stopping check
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            early_stop_counter = 0
+            best_model_state = model.state_dict()
+        else:
+            early_stop_counter += 1
+            print(f"EarlyStopping counter: {early_stop_counter} out of {patience}")
+
         print(
             f"Epoch {epoch + 1}/{epochs}, "
             f"Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.2f}%, "
             f"Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.2f}%"
         )
 
+        if early_stop_counter >= patience:
+            print(f"Early stopping triggered at epoch {epoch + 1}")
+            break
+
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+    
     torch.save(model.state_dict(), model_output_path)
     print(f"Final model saved as '{model_output_path}'")
 
