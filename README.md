@@ -83,7 +83,6 @@ https://benchmark.ini.rub.de/gtsrb_dataset.html
 
 If the official website is temporarily unavailable, the dataset can also be obtained from alternative mirrors, for example:
 - Kaggle: GTSRB - German Traffic Sign Recognition Benchmark
-- Torchvision: `torchvision.datasets.GTSRB`
 
 The dataset is not included in this repository because of its large size.
 
